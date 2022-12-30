@@ -23,6 +23,7 @@ struct Rdio_Scanner_System {
 struct Rdio_Scanner_Uploader_Data {
   std::vector<Rdio_Scanner_System> systems;
   std::string server;
+  std::string upload_script;
 };
 
 class Rdio_Scanner_Uploader : public Plugin_Api {
@@ -369,7 +370,26 @@ public:
     return 1;
   }
 
+  int upload_script(Call_Data_t call_info) {
+    // Handle the Upload Script, if set
+    if (this->data.upload_script.length() != 0) {
+      std::stringstream shell_command;
+      std::string shell_command_string;
+
+      shell_command << this->data.upload_script << " " << call_info.filename;
+      shell_command_string = shell_command.str();
+
+      BOOST_LOG_TRIVIAL(info) << "[" << call_info.short_name << "]\t\033[0;34m" << call_info.call_num << "C\033[0m \t Running upload script: " << shell_command_string;
+
+      return system(shell_command_string.c_str());
+    }
+
+    return 0;
+  }
+
   int call_end(Call_Data_t call_info) {
+    int rc = 0;
+    rc = upload_script(call_info);
     return upload(call_info);
   }
 
@@ -388,6 +408,9 @@ public:
     if (!upload_server_exists) {
       return 1;
     }
+
+    this->data.upload_script = cfg.get<std::string>("uploadScript", "");
+    BOOST_LOG_TRIVIAL(info) << "Rdio Scanner uploadScript: " << this->data.upload_script;
 
     this->data.server = cfg.get<std::string>("server", "");
     BOOST_LOG_TRIVIAL(info) << "Rdio Scanner Server: " << this->data.server;
